@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 import pytz
 import re
 
+# Définir le numéro de version
+VERSION = "0.7"
+
 def detect_delimiter(csv_file):
     with open(csv_file, 'r') as file:
         first_line = file.readline()
@@ -223,7 +226,7 @@ def start_conversion(csv_file, mappings, delimiter, connect_points_var):
 
 def open_csv_and_select_columns():
     root = Tk()
-    root.title("Convertisseur CSV vers KML")
+    root.title(f"Convertisseur CSV vers KML v{VERSION}")
 
     # Fixer une taille minimum pour la fenêtre
     root.minsize(500, 400)
