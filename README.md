@@ -1,67 +1,93 @@
-# CSV-to-KML-Converter
-Latitude (ins CSV) to KML Converter
----
 
-# CSV to KML Converter
+# Convertisseur CSV vers KML
 
-The CSV to KML Converter is a Python script that allows you to convert CSV (Comma-Separated Values) files containing geographical data to KML (Keyhole Markup Language) format, which is commonly used for visualizing geographic data in tools like Google Earth.
+## Description
 
-## Prerequisites
+L'application "Convertisseur CSV vers KML" est un outil simple et efficace pour transformer des fichiers CSV contenant des coordonnées géographiques en fichiers KML, prêts à être utilisés dans des applications de cartographie telles que Google Earth. Ce programme offre plusieurs fonctionnalités utiles, notamment la gestion des horodatages, la prise en charge des différents formats de coordonnées, ainsi que la possibilité de relier les points pour visualiser des trajets.
 
-Before running the converter, ensure you have the following installed:
+## Fonctionnalités
 
-- Python (version 3.6 or higher)
-- Required Python packages: `simplekml`, `csv`
+- **Conversion CSV vers KML** : Transforme un fichier CSV contenant des informations géographiques en un fichier KML utilisable dans Google Earth.
+- **Relier les points** : Permet de relier les points entre eux pour former un trajet dans le fichier KML.
+- **Gestion des horodatages** : Les points peuvent être affichés chronologiquement en fonction des horodatages fournis dans le CSV.
+- **Formats de coordonnées supportés** : Prise en charge des coordonnées en format DMS (Degrés, Minutes, Secondes) et en format décimal (avec points ou virgules comme séparateurs décimaux).
+- **Gestion des fuseaux horaires (UTC)** : Prend en charge les horodatages incluant des informations de fuseau horaire (UTC).
+- **Fichier de log** : Génère un fichier de log pour les points ignorés en raison d'erreurs (horodatages ou coordonnées invalides).
+
+## Prérequis
+
+- Python 3.x
+- Les bibliothèques Python suivantes :
+  - `csv`
+  - `simplekml`
+  - `os`
+  - `pandas`
+  - `tkinter`
+  - `datetime`
+  - `pytz`
+  - `re`
 
 ## Installation
 
-1. Clone or download this repository to your local machine.
+1. **Clonez le dépôt** :
 
-2. Ensure you have Python installed. If not, you can download it from the official Python website (https://www.python.org/downloads/).
-
-3. Open a terminal or command prompt and navigate to the project's directory.
-
-4. Install the required Python packages by running the following command:
-   ```
-   pip install simplekml
+   ```bash
+   git clone https://github.com/votre_nom_utilisateur/convertisseur-csv-vers-kml.git
+   cd convertisseur-csv-vers-kml
    ```
 
-## Usage
+2. **Installez les dépendances** :
 
-1. Place your CSV file with geographical data in the same directory as the Python script (`csv_to_kml_converter.py`).
+   Assurez-vous que les bibliothèques nécessaires sont installées :
 
-2. Make sure your CSV file has the following columns: 'WELL NAME', 'Latitude', 'Longitude', and 'Status'. The 'WELL NAME' column should contain the name of each well, and 'Latitude'/'Longitude' should contain the corresponding coordinates. The 'Status' column can contain additional information about each well.
-
-3. Run the Python script by executing the following command in the terminal:
+   ```bash
+   pip install pandas simplekml pytz
    ```
+
+3. **Exécutez l'application** :
+
+   ```bash
    python csv_to_kml_converter.py
    ```
 
-4. The script will prompt you to enter the name of the input CSV file (e.g., `input.csv`). Press Enter after providing the file name.
+## Utilisation
 
-5. The converted KML file will be generated in the same directory with the name `output.kml`.
+1. **Lancez l'application** : Une interface graphique s'ouvrira.
+2. **Sélectionnez un fichier CSV** : Cliquez sur le bouton pour choisir le fichier CSV à convertir.
+3. **Mappez les colonnes** : Associez les colonnes du CSV aux champs KML. Les colonnes de Latitude et Longitude sont obligatoires.
+4. **Options supplémentaires** : Cochez la case "Relier les points" si vous souhaitez visualiser un trajet dans le fichier KML.
+5. **Convertir en KML** : Cliquez sur "Convertir en KML". Un fichier KML sera généré et un message de confirmation s'affichera.
+6. **Vérifiez les logs** : Si des points ont été ignorés, un fichier de log sera créé avec les détails.
 
-6. You can now open the `output.kml` file in tools like Google Earth to visualize the well locations and their statuses.
+## Formats de date supportés
 
-## Sample CSV Format
+L'application supporte plusieurs formats de date pour les horodatages, y compris ceux avec des informations de fuseau horaire (UTC). Voici quelques exemples :
 
-Here's an example of how your CSV file should be formatted:
+- `"%d/%m/%Y %H:%M:%S %z"` – Exemple : `03/07/2021 13:15:00 +0200`
+- `"%d/%m/%Y %H:%M:%S"` – Exemple : `03/07/2021 13:15:00`
+- `"%Y-%m-%d %H:%M:%S %z"` – Exemple : `2021-07-03 13:15:00 +0000`
+- `"%Y-%m-%d %H:%M:%S"` – Exemple : `2021-07-03 13:15:00`
+- `"%m/%d/%Y %I:%M:%S %p %z"` – Exemple : `07/03/2021 01:15:00 PM -0500`
+- `"%m/%d/%Y %I:%M:%S %p"` – Exemple : `07/03/2021 01:15:00 PM`
+- `"%d-%m-%Y %H:%M %z"` – Exemple : `03-07-2021 13:15 +0200`
+- `"%d-%m-%Y %H:%M"` – Exemple : `03-07-2021 13:15`
+- `"%Y/%m/%d %H:%M:%S %z"` – Exemple : `2021/07/03 13:15:00 +0000`
+- `"%Y/%m/%d %H:%M:%S"` – Exemple : `2021/07/03 13:15:00`
+- `"%d %b %Y %H:%M:%S %z"` – Exemple : `03 Jul 2021 13:15:00 +0200`
+- `"%d %b %Y %H:%M:%S"` – Exemple : `03 Jul 2021 13:15:00`
+- **`"%d/%m/%Y %H:%M:%S(UTC±H)`** – Exemple : `03/07/2021 13:15:25(UTC+2)`
 
-```
-WELL NAME,Latitude,Longitude,Status
-ALBERTON-1,-38.6390335,146.6354826,Needs further investigation
-... (add more wells as needed)
-```
+## Gestion des erreurs
 
-Make sure to remove this example from the README and use your actual well data in the CSV file.
+- **Sélection des colonnes** : Les colonnes de Latitude et Longitude doivent être sélectionnées pour permettre la conversion.
+- **Validation des coordonnées** : Les coordonnées invalides (latitude hors de [-90, 90] et longitude hors de [-180, 180]) sont ignorées et consignées dans le fichier de log.
+- **Validation des horodatages** : Les horodatages invalides ou manquants sont ignorés, et les détails sont enregistrés dans le fichier de log.
+- **Fichier de log** : En cas d'erreurs (coordonnées ou horodatages invalides), un fichier de log est généré pour répertorier les points ignorés.
 
-## Troubleshooting
+## Contribution
 
-- If you encounter any issues while running the script, ensure that your CSV file is properly formatted and contains the required columns.
-- Make sure you have installed the required Python packages mentioned in the "Prerequisites" section.
+Les contributions sont les bienvenues ! Veuillez soumettre une pull request avec des modifications ou ouvrir une issue pour discuter des changements que vous souhaitez apporter.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
