@@ -31,11 +31,7 @@ L'application "Convertisseur CSV vers KML" est un outil simple et efficace pour 
 ## Installation
 
 1.  **Clonez le dépôt** :
-    
-    bash
-    
-    Copier le code
-    
+        
     `git clone https://github.com/votre_nom_utilisateur/convertisseur-csv-vers-kml.git
     cd convertisseur-csv-vers-kml` 
     
@@ -43,20 +39,12 @@ L'application "Convertisseur CSV vers KML" est un outil simple et efficace pour 
     
     Assurez-vous que les bibliothèques nécessaires sont installées :
     
-    bash
-    
-    Copier le code
-    
     `pip install pandas simplekml pytz` 
     
 3.  **Exécutez l'application** :
     
-    bash
-    
-    Copier le code
-    
-    `python csv_to_kml_converter.py` 
-    
+    `python csv_to_kml_converter.py`
+   
 
 ## Utilisation
 
