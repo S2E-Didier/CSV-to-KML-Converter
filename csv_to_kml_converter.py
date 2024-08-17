@@ -4,12 +4,14 @@ import os
 import pandas as pd
 from tkinter import Tk, Label, Button, OptionMenu, StringVar, messagebox, W, Checkbutton, IntVar, Frame
 from tkinter.filedialog import askopenfilename, asksaveasfilename
+from tkinter.ttk import Progressbar
 from datetime import datetime, timedelta
+import threading
 import pytz
 import re
 
 # Définir le numéro de version de l'application
-VERSION = "0.8"
+VERSION = "0.8.1"
 
 # Fonction pour détecter le délimiteur du fichier CSV (virgule ou point-virgule)
 def detect_delimiter(csv_file):
@@ -135,22 +137,27 @@ def convert_coord(coord_str):
     return float(coord_str)
 
 # Fonction principale pour convertir un fichier CSV en fichier KML
-def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp_col, desc_col, delimiter, connect_points, date_format):
+def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp_col, desc_col, delimiter, connect_points, date_format, progress_label, progress_bar):
     kml = simplekml.Kml()
 
-    ignored_rows = 0  # Nombre de lignes ignorées
-    ignored_details = []  # Détails des lignes ignorées
-    assumed_midnight_dates = []  # Dates pour lesquelles l'heure est supposée à minuit
-    coord_conversion_errors = []  # Erreurs de conversion des coordonnées
+    ignored_rows = 0
+    ignored_details = []
+    assumed_midnight_dates = []
+    coord_conversion_errors = []
 
     previous_coords = None
-    start_time = datetime.now()  # Enregistrement du début du traitement
+    start_time = datetime.now()
 
     try:
-        chunk_size = 10000  # Taille des morceaux de lecture du CSV
+        total_rows = sum(1 for _ in open(csv_file)) - 1
+        processed_rows = 0
+
+        progress_bar["maximum"] = total_rows
+        progress_bar["value"] = 0
+
+        chunk_size = 10000
         for chunk in pd.read_csv(csv_file, delimiter=delimiter, chunksize=chunk_size):
             if timestamp_col:
-                # Conversion des dates en utilisant le format sélectionné
                 chunk[timestamp_col], assumed_midnight = zip(*chunk[timestamp_col].apply(lambda date: convert_date_to_iso(date, date_format)))
                 ignored_rows += chunk[timestamp_col].isna().sum()
                 ignored_details.extend(chunk[chunk[timestamp_col].isna()].to_dict('records'))
@@ -163,23 +170,27 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                 chunk = chunk.sort_values(by=timestamp_col)
 
             for _, row in chunk.iterrows():
+                processed_rows += 1
+
+                # Utiliser after pour mettre à jour l'interface dans le thread principal
+                progress_label.after(0, progress_label.config, {"text": f"Lignes traitées : {processed_rows}/{total_rows}"})
+                progress_label.after(0, progress_bar.config, {"value": processed_rows})
+                progress_label.after(0, progress_label.update_idletasks)
+
                 try:
                     well_name = row[name_col] if name_col else None
                     latitude = convert_coord(row[lat_col])
                     longitude = convert_coord(row[lon_col])
 
-                    # Vérification des limites des coordonnées
                     if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
                         raise ValueError(f"Coordonnées invalides : Latitude={latitude}, Longitude={longitude}")
 
                     timestamp = row[timestamp_col] if timestamp_col else None
                     description = row[desc_col] if desc_col else None
 
-                    # Créer un nouveau point KML
                     point = kml.newpoint(name=well_name, coords=[(longitude, latitude)])
                     point.description = f"Description: {description}" if description else None
 
-                    # Créer une ligne pour relier les points si nécessaire
                     if connect_points and previous_coords:
                         linestring = kml.newlinestring()
                         linestring.coords = [previous_coords, (longitude, latitude)]
@@ -198,12 +209,11 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                     ignored_details.append(dict(row))
 
         kml.save(kml_file)
-        end_time = datetime.now()  # Enregistrement de la fin du traitement
+        end_time = datetime.now()
 
-        # Générer le fichier de log
         log_file = os.path.splitext(kml_file)[0] + "_ignored_points.log"
         with open(log_file, 'w') as log:
-            log.write(f"Version de l'application : {VERSION}\n")  # Ajouter le numéro de version ici
+            log.write(f"Version de l'application : {VERSION}\n")
             log.write(f"Traitement commencé à : {start_time}\n")
             log.write(f"Traitement terminé à : {end_time}\n")
             log.write(f"Temps total de traitement : {end_time - start_time}\n\n")
@@ -213,7 +223,7 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                 log.write("Détails des points ignorés :\n")
                 for record in ignored_details:
                     log.write(f"{record}\n")
-            
+
             if assumed_midnight_dates:
                 log.write(f"\n{len(assumed_midnight_dates)} point(s) ont eu leur heure supposée à minuit (00:00:00).\n")
                 log.write("Détails des points concernés :\n")
@@ -286,26 +296,29 @@ def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_poin
 
     return delimiter, date_format_var
 
-# Lancer la conversion après la sélection des colonnes et options
-def start_conversion(csv_file, mappings, delimiter, connect_points_var, date_format_var):
-    lat_col = mappings["lat_col"].get()
-    lon_col = mappings["lon_col"].get()
+def start_conversion(csv_file, mappings, delimiter, connect_points_var, date_format_var, progress_label, progress_bar):
+    def run_conversion():
+        lat_col = mappings["lat_col"].get()
+        lon_col = mappings["lon_col"].get()
 
-    if lat_col == "Sélectionner une colonne" or lon_col == "Sélectionner une colonne":
-        messagebox.showerror("Erreur", "Vous devez sélectionner les colonnes de Latitude et Longitude.")
-        return
+        if lat_col == "Sélectionner une colonne" or lon_col == "Sélectionner une colonne":
+            messagebox.showerror("Erreur", "Vous devez sélectionner les colonnes de Latitude et Longitude.")
+            return
 
-    name_col = mappings["name_col"].get() if mappings["name_col"].get() != "Sélectionner une colonne" else None
-    timestamp_col = mappings["timestamp_col"].get() if mappings["timestamp_col"].get() != "Sélectionner une colonne" else None
-    desc_col = mappings["desc_col"].get() if mappings["desc_col"].get() != "Sélectionner une colonne" else None
+        name_col = mappings["name_col"].get() if mappings["name_col"].get() != "Sélectionner une colonne" else None
+        timestamp_col = mappings["timestamp_col"].get() if mappings["timestamp_col"].get() != "Sélectionner une colonne" else None
+        desc_col = mappings["desc_col"].get() if mappings["desc_col"].get() != "Sélectionner une colonne" else None
 
-    kml_file = asksaveasfilename(title="Enregistrer le fichier KML", defaultextension=".kml", filetypes=[("Fichiers KML", "*.kml")])
-    if kml_file:
-        connect_points = connect_points_var.get() == 1
-        date_format = date_format_var.get()  # Récupérer le format de date sélectionné
-        convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp_col, desc_col, delimiter, connect_points, date_format)
-    else:
-        print("Aucun fichier KML sélectionné. Sortie.")
+        kml_file = asksaveasfilename(title="Enregistrer le fichier KML", defaultextension=".kml", filetypes=[("Fichiers KML", "*.kml")])
+        if kml_file:
+            connect_points = connect_points_var.get() == 1
+            date_format = date_format_var.get()  # Récupérer le format de date sélectionné
+            convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp_col, desc_col, delimiter, connect_points, date_format, progress_label, progress_bar)
+        else:
+            print("Aucun fichier KML sélectionné. Sortie.")
+
+    # Lancer la conversion dans un thread séparé
+    threading.Thread(target=run_conversion).start()
 
 # Ouvrir l'interface utilisateur principale pour sélectionner le fichier CSV et configurer les options
 def open_csv_and_select_columns():
@@ -346,8 +359,16 @@ def open_csv_and_select_columns():
     # Déclarer la variable pour la case à cocher ici pour pouvoir l'utiliser plus tard
     connect_points_var = IntVar()
 
-    convert_button = Button(main_frame, text="Convertir en KML", command=lambda: start_conversion(csv_file, mappings, delimiter, connect_points_var, date_format_var), state="disabled")
+    convert_button = Button(main_frame, text="Convertir en KML", command=lambda: start_conversion(csv_file, mappings, delimiter, connect_points_var, date_format_var, progress_label, progress_bar), state="disabled")
     convert_button.grid(row=8, columnspan=2, pady=10)
+
+    # Ajouter un label pour afficher l'avancement
+    progress_label = Label(main_frame, text="Prêt à commencer")
+    progress_label.grid(row=9, columnspan=2, pady=10)
+
+    # Ajouter une barre de progression
+    progress_bar = Progressbar(main_frame, orient="horizontal", length=300, mode="determinate")
+    progress_bar.grid(row=10, columnspan=2, pady=10)
 
     root.mainloop()
 
