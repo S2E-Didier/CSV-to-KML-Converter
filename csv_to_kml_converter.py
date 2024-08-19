@@ -254,7 +254,7 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                     log.write(f"{error}\n")
 
         # Avertir l'utilisateur si des points ont été ignorés
-        if ignored_rows > 0 or assumed_midnight_dates ou coord_conversion_errors:
+        if ignored_rows > 0 or assumed_midnight_dates or coord_conversion_errors:
             messagebox.showinfo("Attention", f"Le fichier KML a été créé avec succès, mais {ignored_rows} point(s) ont été ignoré(s) et {len(assumed_midnight_dates)} point(s) ont été supposés à minuit. Consultez le fichier de log : {log_file}")
         else:
             messagebox.showinfo("Succès", "Le fichier KML a été créé avec succès sans points ignorés.")
