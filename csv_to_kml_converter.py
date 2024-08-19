@@ -17,6 +17,7 @@ VERSION = "0.8.1"
 def detect_delimiter(csv_file):
     with open(csv_file, 'r') as file:
         first_line = file.readline()
+        # On détecte le délimiteur en vérifiant s'il y a une virgule ou un point-virgule dans la première ligne du fichier CSV
         return ';' if ';' in first_line else ','
 
 # Fonction pour convertir une date en format ISO 8601
@@ -52,6 +53,7 @@ def convert_date_to_iso(date_str, date_format="JJ/MM/AAAA"):
         "%Y/%m/%d %H:%M", "%Y/%m/%d"
     ]
     
+    # Combinaison des formats spécifiques et génériques
     date_formats = primary_formats + generic_formats
     
     # Cas spécial pour les dates avec fuseau horaire explicite (UTC+2, par exemple)
@@ -102,6 +104,7 @@ def dms_to_decimal(dms_str):
     dms_str = dms_str.strip()
     parts = re.split('[°\'"]', dms_str)
     
+    # Validation du format DMS
     if len(parts) < 4 or parts[3] not in ['N', 'S', 'E', 'W']:
         raise ValueError(f"Chaîne DMS invalide : {dms_str}")
     
@@ -118,6 +121,7 @@ def dms_to_decimal(dms_str):
     if direction in ['E', 'W'] and not (0 <= float(degrees) <= 180):
         raise ValueError(f"Longitude invalide dans : {dms_str}")
     
+    # Conversion des degrés, minutes, secondes en décimal
     decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
     if direction in ['S', 'W']:
         decimal = -decimal
@@ -127,37 +131,44 @@ def dms_to_decimal(dms_str):
 def convert_coord(coord_str):
     coord_str = str(coord_str).strip()
     
+    # Vérifier si les coordonnées sont en format DMS
     if re.match(r'^\d+[°]\d+[\'"]\d+(\.\d+)?["]?[NSWE]?$', coord_str):
         return dms_to_decimal(coord_str)
     
+    # Si les coordonnées sont en format décimal avec des virgules, remplacer par des points
     elif ',' in coord_str:
         coord_str = coord_str.replace(',', '.')
         return float(coord_str)
     
+    # Si les coordonnées sont déjà en format décimal avec des points
     return float(coord_str)
 
 # Fonction principale pour convertir un fichier CSV en fichier KML
 def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp_col, desc_col, delimiter, connect_points, date_format, progress_label, progress_bar):
     kml = simplekml.Kml()
 
-    ignored_rows = 0
-    ignored_details = []
-    assumed_midnight_dates = []
-    coord_conversion_errors = []
+    # Initialisation des compteurs et des listes pour les erreurs
+    ignored_rows = 0  # Nombre de lignes ignorées
+    ignored_details = []  # Détails des lignes ignorées
+    assumed_midnight_dates = []  # Dates pour lesquelles l'heure est supposée à minuit
+    coord_conversion_errors = []  # Erreurs de conversion des coordonnées
 
-    previous_coords = None
-    start_time = datetime.now()
+    previous_coords = None  # Coordonnées précédentes pour le traçage de lignes
+    start_time = datetime.now()  # Enregistrement du début du traitement
 
     try:
-        total_rows = sum(1 for _ in open(csv_file)) - 1
+        # Lire la totalité du CSV pour calculer le nombre total de lignes
+        total_rows = sum(1 for _ in open(csv_file)) - 1  # Soustraction de l'en-tête
         processed_rows = 0
 
+        # Initialisation de la barre de progression
         progress_bar["maximum"] = total_rows
         progress_bar["value"] = 0
 
-        chunk_size = 10000
+        chunk_size = 10000  # Taille des morceaux de lecture du CSV
         for chunk in pd.read_csv(csv_file, delimiter=delimiter, chunksize=chunk_size):
             if timestamp_col:
+                # Conversion des dates en utilisant le format sélectionné
                 chunk[timestamp_col], assumed_midnight = zip(*chunk[timestamp_col].apply(lambda date: convert_date_to_iso(date, date_format)))
                 ignored_rows += chunk[timestamp_col].isna().sum()
                 ignored_details.extend(chunk[chunk[timestamp_col].isna()].to_dict('records'))
@@ -209,8 +220,9 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                     ignored_details.append(dict(row))
 
         kml.save(kml_file)
-        end_time = datetime.now()
+        end_time = datetime.now()  # Enregistrement de la fin du traitement
 
+        # Générer le fichier de log
         log_file = os.path.splitext(kml_file)[0] + "_ignored_points.log"
         with open(log_file, 'w') as log:
             log.write(f"Version de l'application : {VERSION}\n")
@@ -235,7 +247,7 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                 for error in coord_conversion_errors:
                     log.write(f"{error}\n")
 
-        if ignored_rows > 0 or assumed_midnight_dates or coord_conversion_errors:
+        if ignored_rows > 0 or assumed_midnight_dates ou coord_conversion_errors:
             messagebox.showinfo("Attention", f"Le fichier KML a été créé avec succès, mais {ignored_rows} point(s) ont été ignoré(s) et {len(assumed_midnight_dates)} point(s) ont été supposés à minuit. Consultez le fichier de log : {log_file}")
         else:
             messagebox.showinfo("Succès", "Le fichier KML a été créé avec succès sans points ignorés.")
@@ -296,6 +308,7 @@ def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_poin
 
     return delimiter, date_format_var
 
+# Démarrer la conversion du CSV vers KML
 def start_conversion(csv_file, mappings, delimiter, connect_points_var, date_format_var, progress_label, progress_bar):
     def run_conversion():
         lat_col = mappings["lat_col"].get()
