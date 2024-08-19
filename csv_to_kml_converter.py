@@ -28,6 +28,7 @@ def convert_date_to_iso(date_str, date_format="JJ/MM/AAAA"):
     # Définir les formats de date en fonction du format choisi par l'utilisateur
     if date_format == "JJ/MM/AAAA":
         primary_formats = [
+        # Formats de date pour JJ/MM/AAAA
             "%d/%m/%Y %H:%M:%S.%f %z", "%d/%m/%Y %H:%M:%S %z", "%d/%m/%Y %H:%M:%S.%f",
             "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y", "%d/%m/%y %H:%M:%S %z",
             "%d/%m/%y %H:%M:%S", "%d/%m/%y %H:%M", "%d/%m/%y",
@@ -37,6 +38,7 @@ def convert_date_to_iso(date_str, date_format="JJ/MM/AAAA"):
         ]
     else:
         primary_formats = [
+        # Formats de date pour MM/JJ/AAAA
             "%m/%d/%Y %H:%M:%S.%f %z", "%m/%d/%Y %H:%M:%S %z", "%m/%d/%Y %H:%M:%S.%f",
             "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M", "%m/%d/%Y", "%m/%d/%y %H:%M:%S %z",
             "%m/%d/%y %H:%M:%S", "%m/%d/%y %H:%M", "%m/%d/%y",
@@ -193,15 +195,18 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                     latitude = convert_coord(row[lat_col])
                     longitude = convert_coord(row[lon_col])
 
+                    # Vérification des limites des coordonnées
                     if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
                         raise ValueError(f"Coordonnées invalides : Latitude={latitude}, Longitude={longitude}")
 
                     timestamp = row[timestamp_col] if timestamp_col else None
                     description = row[desc_col] if desc_col else None
 
+                    # Créer un nouveau point KML
                     point = kml.newpoint(name=well_name, coords=[(longitude, latitude)])
                     point.description = f"Description: {description}" if description else None
 
+                    # Créer une ligne pour relier les points si nécessaire
                     if connect_points and previous_coords:
                         linestring = kml.newlinestring()
                         linestring.coords = [previous_coords, (longitude, latitude)]
@@ -219,10 +224,11 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                     coord_conversion_errors.append(f"Ligne ignorée en raison d'une erreur de conversion : {e}")
                     ignored_details.append(dict(row))
 
+        # Sauvegarder le fichier KML généré
         kml.save(kml_file)
         end_time = datetime.now()  # Enregistrement de la fin du traitement
 
-        # Générer le fichier de log
+        # Générer le fichier de log pour les points ignorés
         log_file = os.path.splitext(kml_file)[0] + "_ignored_points.log"
         with open(log_file, 'w') as log:
             log.write(f"Version de l'application : {VERSION}\n")
@@ -247,6 +253,7 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
                 for error in coord_conversion_errors:
                     log.write(f"{error}\n")
 
+        # Avertir l'utilisateur si des points ont été ignorés
         if ignored_rows > 0 or assumed_midnight_dates ou coord_conversion_errors:
             messagebox.showinfo("Attention", f"Le fichier KML a été créé avec succès, mais {ignored_rows} point(s) ont été ignoré(s) et {len(assumed_midnight_dates)} point(s) ont été supposés à minuit. Consultez le fichier de log : {log_file}")
         else:
@@ -257,6 +264,7 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
 
 # Charger le CSV et configurer l'interface utilisateur pour la sélection des colonnes
 def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var):
+    # Détection du délimiteur du fichier CSV
     delimiter = detect_delimiter(csv_file)
     df = pd.read_csv(csv_file, delimiter=delimiter)
     columns = df.columns.tolist()
