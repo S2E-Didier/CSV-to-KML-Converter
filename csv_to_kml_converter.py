@@ -11,7 +11,7 @@ import pytz
 import re
 
 # Définir le numéro de version de l'application
-VERSION = "0.8.1"
+VERSION = "0.8.2"
 
 # Fonction pour détecter le délimiteur du fichier CSV (virgule ou point-virgule)
 def detect_delimiter(csv_file):
@@ -370,8 +370,18 @@ def open_csv_and_select_columns():
 
     def select_csv_file():
         nonlocal csv_file, delimiter, date_format_var
-        csv_file = askopenfilename(title="Sélectionner un fichier CSV", filetypes=[("Fichiers CSV", "*.csv")])
-        if csv_file:
+        new_csv_file = askopenfilename(title="Sélectionner un fichier CSV", filetypes=[("Fichiers CSV", "*.csv")])
+        
+        if new_csv_file:
+            # Réinitialiser l'interface
+            csv_file = new_csv_file
+            for var in mappings.values():
+                var.set("Sélectionner une colonne")
+            connect_points_var.set(0)
+            progress_label.config(text="Prêt à commencer")
+            progress_bar["value"] = 0
+
+            # Charger et configurer le nouveau fichier CSV
             delimiter, date_format_var = load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var)
 
     select_file_button = Button(main_frame, text="Sélectionner un fichier CSV", command=select_csv_file)
