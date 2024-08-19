@@ -11,7 +11,7 @@ import pytz
 import re
 
 # Définir le numéro de version de l'application
-VERSION = "0.8.2"
+VERSION = "0.8.2.1"
 
 # Fonction pour détecter le délimiteur du fichier CSV (virgule ou point-virgule)
 def detect_delimiter(csv_file):
@@ -263,15 +263,24 @@ def convert_csv_to_kml(csv_file, kml_file, name_col, lat_col, lon_col, timestamp
         messagebox.showerror("Erreur", f"Le fichier KML n'a pas pu être créé en raison d'une erreur : {e}")
 
 # Charger le CSV et configurer l'interface utilisateur pour la sélection des colonnes
-def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var):
+def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var, dynamic_frame, progress_label, progress_bar):
+    # Supprimer les widgets existants dans le cadre dynamique (sans toucher aux autres widgets)
+    for widget in dynamic_frame.winfo_children():
+        widget.destroy()
+
+    # Réinitialiser le bouton "Convertir en KML"
+    convert_button.config(state="disabled")
+
+    # Réinitialiser le label de progression
+    progress_label.config(text="Prêt à commencer")
+
+    # Réinitialiser la barre de progression
+    progress_bar["value"] = 0
+
     # Détection du délimiteur du fichier CSV
     delimiter = detect_delimiter(csv_file)
     df = pd.read_csv(csv_file, delimiter=delimiter)
     columns = df.columns.tolist()
-
-    # Créer un cadre pour les options de mapping des colonnes
-    mapping_frame = Frame(root)
-    mapping_frame.grid(row=1, column=0, padx=10, pady=5, sticky='w')
 
     # Mise à jour des champs avec indication que Latitude et Longitude sont obligatoires
     fields = [("Nom", "name_col"), 
@@ -282,27 +291,20 @@ def load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_poin
 
     for idx, (label_text, var_name) in enumerate(fields):
         label_color = "red" if var_name in ["lat_col", "lon_col"] else "black"
-        Label(mapping_frame, text=label_text, fg=label_color).grid(row=idx, column=0, padx=10, pady=5, sticky='e')
+        Label(dynamic_frame, text=label_text, fg=label_color).grid(row=idx, column=0, padx=10, pady=5, sticky='e')
         mappings[var_name] = StringVar(root)
         mappings[var_name].set("Sélectionner une colonne")
-        OptionMenu(mapping_frame, mappings[var_name], *columns).grid(row=idx, column=1, padx=10, pady=5, sticky='w')
+        OptionMenu(dynamic_frame, mappings[var_name], *columns).grid(row=idx, column=1, padx=10, pady=5, sticky='w')
 
     # Ajout du menu déroulant pour la sélection du format de date juste après le champ Horodatage
     date_format_var = StringVar(root)
     date_format_var.set("JJ/MM/AAAA")  # Valeur par défaut
-    Label(mapping_frame, text="Format de date").grid(row=3, column=2, padx=10, pady=5, sticky='e')
-    OptionMenu(mapping_frame, date_format_var, "JJ/MM/AAAA", "MM/JJ/AAAA").grid(row=3, column=3, padx=10, pady=5, sticky='w')
+    Label(dynamic_frame, text="Format de date").grid(row=3, column=2, padx=10, pady=5, sticky='e')
+    OptionMenu(dynamic_frame, date_format_var, "JJ/MM/AAAA", "MM/JJ/AAAA").grid(row=3, column=3, padx=10, pady=5, sticky='w')
 
-    # Créer un cadre pour les options supplémentaires
-    options_frame = Frame(root)
-    options_frame.grid(row=2, column=0, padx=10, pady=5, sticky='w')
-
-    # Placer la case à cocher pour relier les points
-    connect_points_checkbutton = Checkbutton(options_frame, text="Relier les points (Trajet)", variable=connect_points_var)
-    connect_points_checkbutton.grid(row=0, column=0, pady=10, sticky='w')
-
-    # Ajuster la taille minimale de la fenêtre pour que tout soit visible
-    root.minsize(600, 500)
+    # Déplacer la case à cocher "Relier les points" à une ligne distincte
+    connect_points_checkbutton = Checkbutton(dynamic_frame, text="Relier les points (Trajet)", variable=connect_points_var)
+    connect_points_checkbutton.grid(row=len(fields), column=0, columnspan=2, pady=10, sticky='w')
 
     # Activer ou désactiver le bouton "Convertir" en fonction des sélections
     def check_selection(*args):
@@ -368,21 +370,15 @@ def open_csv_and_select_columns():
     explanation_label = Label(main_frame, text=explanation_text, wraplength=480, justify="left")
     explanation_label.grid(row=0, columnspan=2, padx=10, pady=10, sticky=W)
 
+    # Cadre dynamique pour les options de mappage des colonnes
+    dynamic_frame = Frame(root)
+    dynamic_frame.grid(row=1, column=0, padx=10, pady=5, sticky='w')
+
     def select_csv_file():
         nonlocal csv_file, delimiter, date_format_var
-        new_csv_file = askopenfilename(title="Sélectionner un fichier CSV", filetypes=[("Fichiers CSV", "*.csv")])
-        
-        if new_csv_file:
-            # Réinitialiser l'interface
-            csv_file = new_csv_file
-            for var in mappings.values():
-                var.set("Sélectionner une colonne")
-            connect_points_var.set(0)
-            progress_label.config(text="Prêt à commencer")
-            progress_bar["value"] = 0
-
-            # Charger et configurer le nouveau fichier CSV
-            delimiter, date_format_var = load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var)
+        csv_file = askopenfilename(title="Sélectionner un fichier CSV", filetypes=[("Fichiers CSV", "*.csv")])
+        if csv_file:
+            delimiter, date_format_var = load_csv_and_setup_ui(csv_file, root, mappings, convert_button, connect_points_var, dynamic_frame, progress_label, progress_bar)
 
     select_file_button = Button(main_frame, text="Sélectionner un fichier CSV", command=select_csv_file)
     select_file_button.grid(row=1, columnspan=2, pady=10)
